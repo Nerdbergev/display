@@ -103,7 +103,7 @@ def display_zeile2():
 		i = 0
 		while i < len(dt) - 16:
 			t = dt[i:i+16]
-			display(b"\x8A\x82" + t.encode('ascii', errors="ignore"))
+			display(b"\x8A\x82" + t.encode())
 			i += 1
 			time.sleep(0.2)
 
@@ -131,8 +131,11 @@ def mainloop():
 
 	#TODO: loop
 	while True:
-		import ntptime
-		ntptime.settime()
+		try:
+			import ntptime
+			ntptime.settime()
+		except:
+			pass
 
 		#j = json.load(open('json/js.json'))
 		#j = json.load(open('json/night.json'))
