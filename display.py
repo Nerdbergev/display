@@ -157,12 +157,11 @@ def mainloop():
 			a["Linienname"].startswith('U') or
 			a["Linienname"].startswith('EU') or
 			a["Linienname"].startswith('N')]
-		if len(abfahrten) > 0 and abfahrten[0]["Linienname"].startswith('N'):
-			# nightliner richtungen sind anders herum
-			richtung = "Richtung2"
-		else:
-			richtung = "Richtung1"
-		wichtige_abfahrten = [a for a in wichtige_abfahrten if a["Richtung"] == richtung]
+
+		# bei nightlinern ist die richtung invertiert
+		wichtige_abfahrten = [a for a in wichtige_abfahrten if
+			(a["Richtung"] == "Richtung1" and not a["Linienname"].startswith('N')) or
+			(a["Richtung"] == "Richtung2" and a["Linienname"].startswith('N'))]
 
 		if wichtige_abfahrten:
 			# nur abfahrten der gleichen linie anzeigen
