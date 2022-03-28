@@ -184,7 +184,7 @@ def mainloop():
 				#az = az.replace(tzinfo=None)
 				abfahrt_in_min = minutes_until(az)
 				#abfahrt_in_min = (az - datetime.now()).seconds // 60
-				abfahrtszeiten.append('%i"' % abfahrt_in_min)
+				abfahrtszeiten.append("%i'" % abfahrt_in_min)
 			if len(' '.join(abfahrtszeiten)) > (16 - 4):
 				del abfahrtszeiten[-1]
 			if lauftext and len(' '.join(abfahrtszeiten)) > (16 - 9):
