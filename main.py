@@ -15,4 +15,6 @@ while True:
 		d = e
 		print("Resetting in 30s")
 		time.sleep(30)
+		display.run_line2_thread = False
+		time.sleep(3)
 		machine.reset()

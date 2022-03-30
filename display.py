@@ -21,6 +21,7 @@ zeile1 = b""
 zeile2 = b""
 #lauftext = "Hallo Nerdberg"
 lauftext = ""
+run_line2_thread = True
 
 try:
 	import serial
@@ -83,7 +84,7 @@ def char_repl(s):
 def display_zeile2():
 	n = 0
 	last_text = None
-	while True:
+	while run_line2_thread:
 		while not lauftext:
 			display(b"\x8A\x87" + zeile2 + b" "*(16-len(zeile2)))
 			time.sleep(0.5)
