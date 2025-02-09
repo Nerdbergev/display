@@ -179,7 +179,7 @@ def update_data():
             naechste_abfahrt = abfahrten[0] if len(abfahrten) > 0 else None
             wichtige_abfahrten = [naechste_abfahrt]
 
-        if wichtige_abfahrten:
+        if wichtige_abfahrten and wichtige_abfahrten[0]:
             max_abfahrten = 2 if lauftext else 3
             num_abfahrten = min(len(wichtige_abfahrten), max_abfahrten)
 
