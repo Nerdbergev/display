@@ -16,7 +16,7 @@ lauftext = "Hallo Nerdberg"
 lauftext = ""
 
 try:
-    import serial
+    #import serial
     #s = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
     s = open('fifo', 'wb')
 except:
@@ -90,7 +90,7 @@ def update_data():
     global zeile2
     global lauftext
     if not last_update or (last_update + 30 < int(time.time())):
-        print("update_data")
+        print("update_data:")
         # ntp sync on micropython
         try:
             import ntptime
@@ -122,7 +122,7 @@ def update_data():
         else:
             lauftext = None
 
-        abfahrten = j["Abfahrten"]
+        abfahrten = j.get("Abfahrten", [])
         wichtige_abfahrten = [a for a in abfahrten if
             a["Linienname"].startswith('U') or
             a["Linienname"].startswith('EU') or
@@ -177,6 +177,9 @@ def update_data():
         else:
             zeile1 = "Keine Abfahrten".encode()
             zeile2 = b""
+        print("  zeile1="+repr(zeile1))
+        print("  zeile2="+repr(zeile2))
+        print("  lauftext="+repr(lauftext))
 
 
 display_loop = None
