@@ -10,18 +10,10 @@ except:
 	import urequests
 	requests = urequests
 
-try:
-	import threading
-	lock = threading.Lock()
-except:
-	import _thread
-	lock = _thread.allocate_lock()
-
 zeile1 = b""
 zeile2 = b""
-#lauftext = "Hallo Nerdberg"
+lauftext = "Hallo Nerdberg"
 lauftext = ""
-run_line2_thread = True
 
 try:
 	import serial
@@ -33,7 +25,7 @@ except:
 	#s = machine.UART(0, 115200)
 
 def parse_isodate(s):
-	m = re.match("(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)\+(\d\d)", s)
+	m = re.match(r"(\d\d\d\d)-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)\+(\d\d)", s)
 	year = int(m.group(1))
 	month = int(m.group(2))
 	day = int(m.group(3))
@@ -51,23 +43,8 @@ def minutes_until(t):
 
 
 def display(bts: bytes):
-	try:
-		lock.acquire(blocking=True)
-	except:
-		lock.acquire()
 	s.write(bts)
-	lock.release()
-	try:
-		s.flush()
-	except:
-		pass
-
-
-"""
-def intlen(i):
-	i = max(0, i)
-	return math.floor(math.log(i, 10))+1
-"""
+	s.flush()
 
 
 def char_repl(s):
@@ -81,71 +58,58 @@ def char_repl(s):
 	return s
 
 
-def display_zeile2():
-	n = 0
-	last_text = None
-	while run_line2_thread:
-		while not lauftext:
-			display(b"\x8A\x87" + zeile2 + b" "*(16-len(zeile2)))
-			time.sleep(0.5)
-		# lauftext
-		my_text = lauftext
-		dt = my_text
-		if isinstance(my_text, list):
-			if last_text == my_text:
-				n += 1
-				n %= len(my_text)
-			else:
-				n = 0
-			dt = my_text[n]
-		last_text = my_text
-		dt = char_repl(dt)
-		dt = " "*16 + dt + " "*17
-		i = 0
-		while i < len(dt) - 16:
-			t = dt[i:i+16]
-			display(b"\x8A\x82" + t.encode())
-			i += 1
-			time.sleep(0.2)
+def zeile2_scroll_msg(dt: str, interval=0.2):
+	"""
+		dt: a string to scroll through zeile2
+	"""
+	dt = " "*16 + dt + " "*17
+	i = 0 # offset of the scrolling message
+	while i < len(dt) - 16:
+		t = dt[i:i+16]
+		display(b"\x8A\x82" + t.encode())
+		i += 1
+		time.sleep(interval)
 
-display_loop = None
-def setup():
-	global display_loop
-	global main_loop
-
-	# initialize display
-	s.write(b"\x8e")
-	s.write(b"\x87")
-	try:
-		display_loop = threading.Thread(target=display_zeile2)
-		display_loop.setDaemon(True)
-		display_loop.start()
-	except:
-		display_loop = _thread.start_new_thread(display_zeile2, [])
-
-
-#while True:
-def mainloop():
+last_update = 0
+def update_data():
+	"""
+		if called 30s after last call:
+			- perform ntp sync
+			- query vag API
+			- set zeile1 to preformatted bytestring
+			- set zeile2 to bytestring without escape codes (string is capped to 16 bytes in display loop)
+			- set lauftext to string or list of strings or None
+	"""
+	global last_update
 	global zeile1
 	global zeile2
 	global lauftext
-
-	#TODO: loop
-	while True:
+	if not last_update or (last_update + 30 < int(time.time())):
+		print("update_data")
+		# ntp sync on micropython
 		try:
 			import ntptime
 			ntptime.settime()
 		except:
 			pass
 
+		last_update = int(time.time())
+
 		#j = json.load(open('json/js.json'))
 		#j = json.load(open('json/night.json'))
 
 		# Jakobinenstraße
-		js = requests.get("https://start.vag.de/dm/api/abfahrten.json/vgn/2171/").text
+		js = requests.get("https://start.vag.de/dm/api/abfahrten.json/vgn/2171/", timeout=10).text
 		# Schoppershof
 		#j = requests.get("https://start.vag.de/dm/api/abfahrten.json/vgn/341/").json()
-		j = json.loads(js)
+		try:
+			j = json.loads(js)
+		except:
+			zeile1 = "Invalid JSON".encode()
+			zeile2 = b""
+			lauftext = js
+			return
+
 		#del js
 
 		if 'Sonderinformationen' in j and j['Sonderinformationen']:
@@ -205,9 +169,49 @@ def mainloop():
 				zeile1 += b" " * space_left_in_line1
 				zeile2 = char_repl(a['Richtungstext']).encode()
 			zeile1 += str_abfahrtszeiten.encode()
-			display(b"\x89\x87" + zeile1)
 		else:
 			zeile1 = "Keine Abfahrten".encode()
-			display(b"\x89\x87" + zeile1)
 			zeile2 = b""
-		time.sleep(20)
+
+
+display_loop = None
+def setup():
+	global display_loop
+	global main_loop
+
+	# initialize display
+	s.write(b"\x8e")
+	s.write(b"\x87")
+
+
+def mainloop():
+	global zeile1
+	global zeile2
+	global lauftext
+	msg_index = 0
+	last_text = None
+	while True:
+		update_data()
+
+		# zeile 1
+		display(b"\x89\x87" + zeile1)
+
+		# zeile 2
+		if lauftext:
+			my_text = lauftext # working copy of lauftext in case it gets overwritten during http update
+			dt = my_text       # dt is the actual currently displayed msg string (and not a list as ensured below)
+			if isinstance(my_text, list):
+				if last_text == my_text:
+					# if lauftext is list of msgs get next msg from list
+					msg_index += 1
+					msg_index %= len(my_text)
+				else:
+					# unless we meanwhile got a different list - then let's start from the first element
+					msg_index = 0
+				dt = my_text[msg_index]
+			last_text = my_text
+			zeile2_scroll_msg(char_repl(dt))
+		else:
+			# no lauftext
+			display(b"\x8A\x87" + zeile2[:16] + b" "*(16-len(zeile2)))
+			time.sleep(1)
