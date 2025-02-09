@@ -1,6 +1,31 @@
 Abfahrtsdisplay für Öffis
 =========================
 
+Dieser code läuft auf einem ESP32 oder RPi Pico W mit MicroPython.
+- Zur Installation die boot.py anpassen.
+- Dann auf einem Gerät MicroPython installieren.
+- Dependencies installieren:
+```
+mpremote mip install urequests
+```
+- Passwort für webrepl setzen (der Befehl startet einen dialog)
+```
+mpremote
+>>> import webrepl_setup
+
+```
+- Dateien kopieren:
+```
+mpremote cp display.py :display.py
+mpremote cp main.py :main.py
+mpremote cp boot.py :boot.py
+```
+- Debug ansehen via mpremote oder via webrepl (url wird von mpremote angezeigt - http port ist 8266)
+```
+mpremote
+```
+
+
 ### boot.py
 Stellt WLAN-Verbindung her und führt NTP-Sync durch.
 WLAN-Zugangsdaten hier eintragen.
