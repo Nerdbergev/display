@@ -46,10 +46,46 @@ def minutes_until(t):
     seconds_until = t - int(time.time()-timezone_delta)
     return seconds_until // 60
 
+sim_buffer = [' ']*32
+last_sim_buffer = None
+sim_cursor = 0
+def sim_display(bts: bytes):
+    """
+        this function emulates the actual display and prints the current expected output
+        of the physical display to the repl console
+    """
+    global sim_buffer
+    global last_sim_buffer
+    global sim_cursor
+
+    # update cursor and buffer
+    for c in bts:
+        if c >= 0x20 and c <= 0x7E:
+            sim_buffer[sim_cursor] = chr(c)
+            sim_cursor += 1
+            sim_cursor = min(31, sim_cursor)
+        elif c >= 1 and c <= 32:
+            sim_cursor = c - 1
+        elif c == 0x89:
+            sim_cursor = 0
+        elif c == 0x8A:
+            sim_cursor = 16
+        elif c == 0x8E:
+            sim_buffer = [' ']*32
+            sim_cursor = 0
+
+    if last_sim_buffer != sim_buffer:
+        # render and print buffer contents
+        print("+"+"-"*16+"+")
+        print("|"+''.join(sim_buffer[0:16])+"|")
+        print("|"+''.join(sim_buffer[16:32])+"|")
+        print("+"+"-"*16+"+")
+        last_sim_buffer = sim_buffer.copy()
 
 def display(bts: bytes):
     s.write(bts)
     s.flush()
+    sim_display(bts)
 
 
 def char_repl(s):
@@ -116,6 +152,7 @@ def update_data():
             return
 
         #del js
+        #j = json.load(open('json/ersatz.json'))
 
         if 'Sonderinformationen' in j and j['Sonderinformationen']:
             lauftext = j['Sonderinformationen']
