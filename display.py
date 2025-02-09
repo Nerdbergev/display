@@ -76,10 +76,18 @@ def sim_display(bts: bytes):
 
     if last_sim_buffer != sim_buffer:
         # render and print buffer contents
+
+        # full display box
+        """
         print("+"+"-"*16+"+")
         print("|"+''.join(sim_buffer[0:16])+"|")
         print("|"+''.join(sim_buffer[16:32])+"|")
         print("+"+"-"*16+"+")
+        """
+
+        # slim display box
+        print("DISPLAY: |"+''.join(sim_buffer[0:16])+"|"+''.join(sim_buffer[16:32])+"|")
+
         last_sim_buffer = sim_buffer.copy()
 
 def display(bts: bytes):
@@ -88,7 +96,7 @@ def display(bts: bytes):
     sim_display(bts)
 
 
-def char_repl(s):
+def char_repl(s: str) -> str:
     s = s.replace('ö', 'oe')
     s = s.replace('ä', 'ae')
     s = s.replace('ü', 'ue')
@@ -96,6 +104,13 @@ def char_repl(s):
     s = s.replace('Ä', 'AE')
     s = s.replace('Ü', 'UE')
     s = s.replace('ß', 'ss')
+
+    # cleanup escape codes
+    for i in range(0x01, 0x1f+1):
+        s = s.replace(chr(i), '')
+    for i in range(0x80, 0x8f+1):
+        s = s.replace(chr(i), '')
+
     return s
 
 
@@ -136,23 +151,36 @@ def update_data():
 
         last_update = int(time.time())
 
-        #j = json.load(open('json/js.json'))
-        #j = json.load(open('json/night.json'))
-
         # Jakobinenstraße
-        js = requests.get("https://start.vag.de/dm/api/abfahrten.json/vgn/2171/", timeout=10).text
+        url = "https://start.vag.de/dm/api/abfahrten.json/vgn/2171/"
+
         # Schoppershof
-        #j = requests.get("https://start.vag.de/dm/api/abfahrten.json/vgn/341/").json()
+        #url = "https://start.vag.de/dm/api/abfahrten.json/vgn/341/"
+
+        # HTTP request
         try:
-            j = json.loads(js)
-        except:
-            zeile1 = "Invalid JSON".encode()
+            res = requests.get(url, timeout=10)
+            assert res.status_code == 200, "HTTP Status Code: " + str(res.status_code) + ": " + res.reason
+        except Exception as e:
+            zeile1 = "HTTP req fail".encode()
             zeile2 = b""
-            lauftext = js
+            lauftext = repr(e)
+            print(url)
+            print(e)
             return
 
-        #del js
-        #j = json.load(open('json/ersatz.json'))
+        # JSON decode
+        try:
+            j = json.loads(res.text)
+        except:
+            zeile1 = "API ret bad JSON".encode()
+            zeile2 = b""
+            lauftext = res.text[:100]
+            print("API returned bad json:\n" + res.text)
+            return
+
+        # Inject json response for testing
+        #j = json.load(open('json/sonderinfo.json'))
 
         if 'Sonderinformationen' in j and j['Sonderinformationen']:
             lauftext = j['Sonderinformationen']
@@ -214,19 +242,14 @@ def update_data():
         else:
             zeile1 = "Keine Abfahrten".encode()
             zeile2 = b""
-        print("  zeile1="+repr(zeile1))
-        print("  zeile2="+repr(zeile2))
-        print("  lauftext="+repr(lauftext))
+        print("  zeile1 = "+repr(zeile1))
+        print("  zeile2 = "+repr(zeile2))
+        print("  lauftext = "+repr(lauftext))
 
 
-display_loop = None
 def setup():
-    global display_loop
-    global main_loop
-
     # initialize display
-    s.write(b"\x8e")
-    s.write(b"\x87")
+    display(b"\x8e\x87")
 
 
 def mainloop():
