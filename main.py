@@ -18,7 +18,13 @@ for i in range(20):
 		break
 	print(".", end="")
 	utime.sleep(1)
-print("DONE")
+if wlan.isconnected():
+    print("DONE")
+else:
+    print("FAILED")
+    print("Resetting...")
+    utime.sleep(3)
+    machine.soft_reset()
 
 ntp_synced = False
 print("Initial NTP sync...", end="")
@@ -39,7 +45,11 @@ if not ntp_synced:
     utime.sleep(3)
     machine.soft_reset()
 
-
+try:
+    import webrepl_cfg
+    print("WebREPL Password: " + webrepl_cfg.PASS)
+except:
+    pass
 import webrepl
 webrepl.start()
 
