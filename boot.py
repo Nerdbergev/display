@@ -4,31 +4,4 @@
 #import webrepl
 #webrepl.start()
 
-import utime
-
-print("Waiting 3s")
-utime.sleep(1)
-print("DONE")
-
-print("Connecting to wifi", end="")
-import network
-network.hostname('abfahrtsdisplay')
-wlan = network.WLAN(network.STA_IF)
-wlan.active(True)
-wlan.connect("Nerdberg", "ADD_WIFI_PASSWORD")
-print("...", end="")
-
-for i in range(20):
-	if wlan.isconnected():
-		break
-	print(".", end="")
-	utime.sleep(1)
-print("DONE")
-
-print("Initial NTP sync...", end="")
-import ntptime
-ntptime.settime()
-print("DONE")
-
-import webrepl
-webrepl.start()
+# MOVED ALL TO main.py as USB stack is only initialized after boot.py exited on RP2 port

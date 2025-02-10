@@ -96,6 +96,12 @@ def display(bts: bytes):
     sim_display(bts)
 
 
+def display_manual(l1="", l2=""):
+    """
+    """
+    display(b"\x8e\x89\x87"+char_repl(l1).encode()+b"\x8a"+char_repl(l2).encode())
+
+
 def char_repl(s: str) -> str:
     s = s.replace('ö', 'oe')
     s = s.replace('ä', 'ae')
@@ -147,6 +153,7 @@ def update_data():
             import ntptime
             ntptime.settime()
         except:
+            print("NTP failed")
             pass
 
         last_update = int(time.time())
