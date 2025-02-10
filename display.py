@@ -151,9 +151,12 @@ def update_data():
         # ntp sync on micropython
         try:
             import ntptime
-            ntptime.settime()
+            try:
+                ntptime.settime()
+            except:
+                print("NTP failed")
         except:
-            print("NTP failed")
+            # we are on cPython
             pass
 
         last_update = int(time.time())
