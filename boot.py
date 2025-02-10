@@ -12,6 +12,7 @@ print("DONE")
 
 print("Connecting to wifi", end="")
 import network
+network.hostname('abfahrtsdisplay')
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
 wlan.connect("Nerdberg", "ADD_WIFI_PASSWORD")
