@@ -27,11 +27,15 @@ mpremote
 
 
 ### boot.py
+Does nothing anymore.
+All moved to main.py as the usb stack
+(including serial) is only initialized after boot.py
+finished.
+
+### main.py
 Stellt WLAN-Verbindung her und führt NTP-Sync durch.
 WLAN-Zugangsdaten hier eintragen.
 Startet zudem ein webrepl für Zugriff via Netzwerk.
-
-### main.py
 Ruft das Hauptprogramm auf.
 
 ### sim.py
