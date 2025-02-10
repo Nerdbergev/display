@@ -69,6 +69,7 @@ except Exception as e:
     print("Exception occured")
     sys.print_exception(e)
     last_exception = e
+    display_manual(str(e))
     print("Resetting in 30s")
     time.sleep(30)
     machine.soft_reset()
