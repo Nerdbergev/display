@@ -69,7 +69,10 @@ except Exception as e:
     print("Exception occured")
     sys.print_exception(e)
     last_exception = e
-    display_manual(str(e))
-    print("Resetting in 30s")
+    display_manual(type(e).__name__)
+    for i in range(4):
+        display.zeile2_scroll_msg(str(e))
+    display_manual(type(e).__name__, "Reset in 10s")
+    print("Resetting in 10s")
     time.sleep(30)
     machine.soft_reset()
