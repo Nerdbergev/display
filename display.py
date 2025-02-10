@@ -162,9 +162,9 @@ def update_data():
             res = requests.get(url, timeout=10)
             assert res.status_code == 200, "HTTP Status Code: " + str(res.status_code) + ": " + res.reason
         except Exception as e:
-            zeile1 = "HTTP req fail".encode()
+            zeile1 = "HTTP req fail   ".encode()
             zeile2 = b""
-            lauftext = repr(e)
+            lauftext = str(e)
             print(url)
             print(e)
             return
