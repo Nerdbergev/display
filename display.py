@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import sys
 import re
 import time
 import json
@@ -15,17 +16,22 @@ zeile2 = b""
 lauftext = "Hallo Nerdberg"
 lauftext = ""
 
-try:
+if sys.platform == 'linux':
     #import serial
     #s = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
     s = open('fifo', 'wb')
-except:
+    #s = open('/dev/null', 'wb')
+else:
     import machine
-    try:
+    if sys.platform == 'esp32':
         # ESP 32
+        import esp32
+        print("UART2 - ESP32")
         s = machine.UART(2, 9600)
-    except:
+    else:
         # RPi Pico W
+        import rp2
+        print("UART0 - RPI Pico W")
         s = machine.UART(0, baudrate=9600) # , tx=Pin(0), rx=Pin(1))
     #s = machine.UART(0, 115200)
 
@@ -92,7 +98,11 @@ def sim_display(bts: bytes):
 
 def display(bts: bytes):
     s.write(bts)
-    s.flush()
+    try:
+        s.flush()
+    except:
+        # flush() doesn't work when writing to /dev/null or fifo using micropython
+        pass
     sim_display(bts)
 
 
@@ -149,15 +159,12 @@ def update_data():
     if not last_update or (last_update + 30 < int(time.time())):
         print("update_data:")
         # ntp sync on micropython
-        try:
+        if sys.implementation.name == 'micropython' and sys.platform != 'linux':
             import ntptime
             try:
                 ntptime.settime()
             except:
                 print("NTP failed")
-        except:
-            # we are on cPython
-            pass
 
         last_update = int(time.time())
 

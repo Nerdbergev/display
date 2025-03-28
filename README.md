@@ -50,3 +50,23 @@ python3 -i display.py
 >>> setup()
 >>> mainloop()
 ```
+
+## Testen unter Linux
+Im ersten Terminal:
+```
+mkfifo fifo
+./sim.py
+```
+
+Im zweiten Terminal:
+```
+python3 -i display
+```
+… oder falls micropython unter Linux installiert ist:
+micropython -i display
+```
+… und anschließend:
+```
+>>> setup()
+>>> mainloop()
+```
