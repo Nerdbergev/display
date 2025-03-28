@@ -190,7 +190,7 @@ def update_data():
             return
 
         # Inject json response for testing
-        #j = json.load(open('json/sonderinfo.json'))
+        #j = json.load(open('json_files/sonderinfo.json'))
 
         if 'Sonderinformationen' in j and j['Sonderinformationen']:
             lauftext = j['Sonderinformationen']
