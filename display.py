@@ -277,19 +277,24 @@ def format_zeilen(abfahrten, lauftext, empty=b"Keine Abfahrten"):
                 len(str_abfahrtszeiten) - len(a['Linienname'])
 
             zeile1 = b"\x81" + a['Linienname'].encode() + b"\x87 "
+            ziel = char_repl(a['Richtungstext'])
+            if ziel == "Hauptbahnhof":
+                ziel = "Nuernberg Hbf"
+            if ziel.startswith("Fue-"):
+                ziel = ziel.replace("Fue-", "F. ")
             if lauftext:
-                ziel = char_repl(a['Richtungstext'])
                 print(f"{ziel=}")
                 ziel = ziel.replace("Fuerth ", "F. ")
                 ziel = ziel.replace("Nuernberg ", "N. ")
                 ziel = ziel.replace("Langwasser ", "L. ")
                 ziel = ziel.replace("Hauptbahnhof", "Hbf")
+                ziel = ziel.replace("N. Hbf", "Nue Hbf")
                 ziel = ziel[:space_left_in_line1]
                 zeile1 += ziel.encode() + b" "
                 zeile1 += b" " * (space_left_in_line1 - len(ziel))
             else:
                 zeile1 += b" " * space_left_in_line1
-                zeile2 = char_repl(a['Richtungstext']).encode()
+                zeile2 = ziel.encode()
             zeile1 += str_abfahrtszeiten.encode()
         else:
             zeile1 = empty
