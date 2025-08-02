@@ -13,6 +13,8 @@ except:
 
 zeile1 = b""
 zeile2 = b""
+zeile1_alt = b""
+zeile2_alt = b""
 lauftext = "Hallo Nerdberg"
 lauftext = ""
 
@@ -25,12 +27,10 @@ else:
     import machine
     if sys.platform == 'esp32':
         # ESP 32
-        import esp32
         print("UART2 - ESP32")
         s = machine.UART(2, 9600)
     else:
         # RPi Pico W
-        import rp2
         print("UART0 - RPI Pico W")
         s = machine.UART(0, baudrate=9600) # , tx=Pin(0), rx=Pin(1))
     #s = machine.UART(0, 115200)
@@ -130,15 +130,16 @@ def char_repl(s: str) -> str:
     return s
 
 
-def zeile2_scroll_msg(dt: str, interval=0.2):
+def zeile2_scroll_msg(zeile1, zeile1_alt, dt: str, interval=0.2):
     """
         dt: a string to scroll through zeile2
     """
     dt = " "*16 + dt + " "*17
     i = 0 # offset of the scrolling message
     while i < len(dt) - 16:
+        z1 = zeile1 if time.time() % 9.8 > 4.9 else zeile1_alt
         t = dt[i:i+16]
-        display(b"\x8A\x82" + t.encode())
+        display(b"\x89\x87" + z1 + b"\x8A\x82" + t.encode())
         i += 1
         time.sleep(interval)
 
@@ -155,6 +156,8 @@ def update_data():
     global last_update
     global zeile1
     global zeile2
+    global zeile1_alt
+    global zeile2_alt
     global lauftext
     if not last_update or (last_update + 30 < int(time.time())):
         print("update_data:")
@@ -201,6 +204,8 @@ def update_data():
 
         if 'Sonderinformationen' in j and j['Sonderinformationen']:
             lauftext = j['Sonderinformationen']
+            #lauftext = [l for l in lauftext if not l.startswith("Umgestaltung des Obstmarkts")]
+            #lauftext = [l for l in lauftext if not l.startswith("Bauarbeiten Maxfeld")]
         else:
             lauftext = None
 
@@ -211,6 +216,10 @@ def update_data():
             a["Linienname"].startswith('N')]
 
         # bei nightlinern ist die richtung invertiert
+        wichtige_abfahrten_gegenrichtung = [a for a in wichtige_abfahrten if
+            (a["Richtung"] == "Richtung2" and not a["Linienname"].startswith('N')) or
+            (a["Richtung"] == "Richtung1" and a["Linienname"].startswith('N'))]
+
         wichtige_abfahrten = [a for a in wichtige_abfahrten if
             (a["Richtung"] == "Richtung1" and not a["Linienname"].startswith('N')) or
             (a["Richtung"] == "Richtung2" and a["Linienname"].startswith('N'))]
@@ -219,18 +228,38 @@ def update_data():
             # nur abfahrten der gleichen linie anzeigen
             wichtige_abfahrten = [a for a in wichtige_abfahrten if
                 a["Linienname"] == wichtige_abfahrten[0]["Linienname"]]
+
+            if wichtige_abfahrten_gegenrichtung:
+                # nur abfahrten der gleichen linie anzeigen
+                wichtige_abfahrten_gegenrichtung = [a for a in wichtige_abfahrten_gegenrichtung if
+                    a["Linienname"] == wichtige_abfahrten_gegenrichtung[0]["Linienname"]]
         else:
-            # jetzt ist es auch schon egal
+            # jetzt ist es auch schon egal - zeige einfach die naechste abfahrt
             naechste_abfahrt = abfahrten[0] if len(abfahrten) > 0 else None
             wichtige_abfahrten = [naechste_abfahrt]
+            wichtige_abfahrten_gegenrichtung = []
 
-        if wichtige_abfahrten and wichtige_abfahrten[0]:
+        zeile1, zeile2 = format_zeilen(wichtige_abfahrten, lauftext)
+        zeile1_alt, zeile2_alt = format_zeilen(wichtige_abfahrten_gegenrichtung, lauftext, empty=b"")
+        if not zeile1_alt:
+            zeile1_alt = zeile1
+        if not zeile2_alt:
+            zeile2_alt = zeile1
+        print("  zeile1 = "+repr(zeile1))
+        print("  zeile2 = "+repr(zeile2))
+        print("  zeile1_alt = "+repr(zeile1_alt))
+        print("  zeile2_alt = "+repr(zeile2_alt))
+        print("  lauftext = "+repr(lauftext))
+
+def format_zeilen(abfahrten, lauftext, empty=b"Keine Abfahrten"):
+        zeile2 = b""
+        if abfahrten and abfahrten[0]:
             max_abfahrten = 2 if lauftext else 3
-            num_abfahrten = min(len(wichtige_abfahrten), max_abfahrten)
+            num_abfahrten = min(len(abfahrten), max_abfahrten)
 
             abfahrtszeiten = []
             for i in range(0, num_abfahrten):
-                a = wichtige_abfahrten[i]
+                a = abfahrten[i]
                 az = parse_isodate(a['AbfahrtszeitIst'])
                 #az = datetime.fromisoformat(a['AbfahrtszeitIst'])
                 #az = az.replace(tzinfo=None)
@@ -242,14 +271,20 @@ def update_data():
             if lauftext and len(' '.join(abfahrtszeiten)) > (16 - 9):
                 del abfahrtszeiten[-1]
             str_abfahrtszeiten = ' '.join(abfahrtszeiten)
-            a = wichtige_abfahrten[0]
+            a = abfahrten[0]
 
             space_left_in_line1 = 16 - 1 - int(bool(lauftext)) - \
                 len(str_abfahrtszeiten) - len(a['Linienname'])
 
             zeile1 = b"\x81" + a['Linienname'].encode() + b"\x87 "
             if lauftext:
-                ziel = char_repl(a['Richtungstext'])[:space_left_in_line1]
+                ziel = char_repl(a['Richtungstext'])
+                print(f"{ziel=}")
+                ziel = ziel.replace("Fuerth ", "F. ")
+                ziel = ziel.replace("Nuernberg ", "N. ")
+                ziel = ziel.replace("Langwasser ", "L. ")
+                ziel = ziel.replace("Hauptbahnhof", "Hbf")
+                ziel = ziel[:space_left_in_line1]
                 zeile1 += ziel.encode() + b" "
                 zeile1 += b" " * (space_left_in_line1 - len(ziel))
             else:
@@ -257,12 +292,9 @@ def update_data():
                 zeile2 = char_repl(a['Richtungstext']).encode()
             zeile1 += str_abfahrtszeiten.encode()
         else:
-            zeile1 = "Keine Abfahrten".encode()
+            zeile1 = empty
             zeile2 = b""
-        print("  zeile1 = "+repr(zeile1))
-        print("  zeile2 = "+repr(zeile2))
-        print("  lauftext = "+repr(lauftext))
-
+        return (zeile1, zeile2)
 
 def setup():
     # initialize display
@@ -271,15 +303,16 @@ def setup():
 
 def mainloop():
     global zeile1
+    global zeile1_alt
     global zeile2
+    global zeile2_alt
     global lauftext
     msg_index = 0
     last_text = None
     while True:
         update_data()
 
-        # zeile 1
-        display(b"\x89\x87" + zeile1)
+        # zeile 1: done via zeile2_scroll_msg or in else block
 
         # zeile 2
         if lauftext:
@@ -295,8 +328,10 @@ def mainloop():
                     msg_index = 0
                 dt = my_text[msg_index]
             last_text = my_text
-            zeile2_scroll_msg(char_repl(dt))
+            zeile2_scroll_msg(zeile1, zeile1_alt, char_repl(dt))
         else:
             # no lauftext
-            display(b"\x8A\x87" + zeile2[:16] + b" "*(16-len(zeile2)))
-            time.sleep(1)
+            display(b"\x89\x87" + zeile1 + b"\x8A\x87" + zeile2[:16] + b" "*(16-len(zeile2)))
+            time.sleep(4.9)
+            display(b"\x89\x87" + zeile1_alt + b"\x8A\x87" + zeile2_alt[:16] + b" "*(16-len(zeile2_alt)))
+            time.sleep(4.9)
