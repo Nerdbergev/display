@@ -137,7 +137,7 @@ def zeile2_scroll_msg(zeile1, zeile1_alt, dt: str, interval=0.2):
     dt = " "*16 + dt + " "*17
     i = 0 # offset of the scrolling message
     while i < len(dt) - 16:
-        z1 = zeile1 if time.time() % 9.8 > 4.9 else zeile1_alt
+        z1 = zeile1 if time.time() % 10.2 > 5.1 else zeile1_alt
         t = dt[i:i+16]
         display(b"\x89\x87" + z1 + b"\x8A\x82" + t.encode())
         i += 1
@@ -204,8 +204,8 @@ def update_data():
 
         if 'Sonderinformationen' in j and j['Sonderinformationen']:
             lauftext = j['Sonderinformationen']
-            #lauftext = [l for l in lauftext if not l.startswith("Umgestaltung des Obstmarkts")]
-            #lauftext = [l for l in lauftext if not l.startswith("Bauarbeiten Maxfeld")]
+            lauftext = [l for l in lauftext if not l.startswith("Umgestaltung des Obstmarkts")]
+            lauftext = [l for l in lauftext if not l.startswith("Bauarbeiten Maxfeld")]
         else:
             lauftext = None
 
@@ -332,6 +332,6 @@ def mainloop():
         else:
             # no lauftext
             display(b"\x89\x87" + zeile1 + b"\x8A\x87" + zeile2[:16] + b" "*(16-len(zeile2)))
-            time.sleep(4.9)
+            time.sleep(5.1)
             display(b"\x89\x87" + zeile1_alt + b"\x8A\x87" + zeile2_alt[:16] + b" "*(16-len(zeile2_alt)))
-            time.sleep(4.9)
+            time.sleep(5.1)
