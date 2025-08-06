@@ -137,7 +137,7 @@ def zeile2_scroll_msg(zeile1, zeile1_alt, dt: str, interval=0.2):
     dt = " "*16 + dt + " "*17
     i = 0 # offset of the scrolling message
     while i < len(dt) - 16:
-        z1 = zeile1 if time.time() % 10.2 > 5.1 else zeile1_alt
+        z1 = zeile1 if time.time() % 10 > 5 else zeile1_alt
         t = dt[i:i+16]
         display(b"\x89\x87" + z1 + b"\x8A\x82" + t.encode())
         i += 1
@@ -281,14 +281,14 @@ def format_zeilen(abfahrten, lauftext, empty=b"Keine Abfahrten"):
             if ziel == "Hauptbahnhof":
                 ziel = "Nuernberg Hbf"
             if ziel.startswith("Fue-"):
-                ziel = ziel.replace("Fue-", "F. ")
+                ziel = ziel.replace("Fue-", "F.")
             if lauftext:
                 print(f"{ziel=}")
-                ziel = ziel.replace("Fuerth ", "F. ")
-                ziel = ziel.replace("Nuernberg ", "N. ")
-                ziel = ziel.replace("Langwasser ", "L. ")
+                ziel = ziel.replace("Fuerth ", "F.")
+                ziel = ziel.replace("Nuernberg ", "N.")
+                ziel = ziel.replace("Langwasser ", "L.")
                 ziel = ziel.replace("Hauptbahnhof", "Hbf")
-                ziel = ziel.replace("N. Hbf", "Nue Hbf")
+                ziel = ziel.replace("N.Hbf", "Nue Hbf")
                 ziel = ziel[:space_left_in_line1]
                 zeile1 += ziel.encode() + b" "
                 zeile1 += b" " * (space_left_in_line1 - len(ziel))
