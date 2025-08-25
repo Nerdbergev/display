@@ -184,6 +184,8 @@ def update_data():
         except Exception as e:
             zeile1 = "HTTP req fail   ".encode()
             zeile2 = b""
+            zeile1_alt = b""
+            zeile2_alt = b""
             lauftext = str(e)
             print(url)
             print(e)
@@ -195,6 +197,8 @@ def update_data():
         except:
             zeile1 = "API ret bad JSON".encode()
             zeile2 = b""
+            zeile1_alt = b""
+            zeile2_alt = b""
             lauftext = res.text[:100]
             print("API returned bad json:\n" + res.text)
             return
@@ -340,3 +344,7 @@ def mainloop():
             time.sleep(5.1)
             display(b"\x89\x87" + zeile1_alt + b"\x8A\x87" + zeile2_alt[:16] + b" "*(16-len(zeile2_alt)))
             time.sleep(5.1)
+
+if __name__ == '__main__':
+    setup()
+    mainloop()
