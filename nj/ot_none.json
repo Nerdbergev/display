@@ -1,0 +1,11 @@
+{
+  "Metadata": {
+    "Version": "Puls-API-v1.2.3",
+    "Timestamp": "2025-11-19T00:15:14+01:00"
+  },
+  "Haltestellenname": "Obere Turnstr. (Nürnberg)",
+  "VAGKennung": "OTS",
+  "VGNKennung": 730,
+  "Abfahrten": [
+  ]
+}
