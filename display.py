@@ -142,7 +142,7 @@ def zeile2_scroll_lauftext(zeilen: list, lauftext: str, interval=0.2):
         if len(zeilen) == 0:
             z1 = b""
         else:
-            z1 = zeilen[min(int(time.time() % 10 > 5), len(zeilen))]
+            z1 = zeilen[min(int(time.time() % 10 > 5), len(zeilen)-1)]
         display(b"\x89\x87" + z1 + b"\x8A\x82" + lauftext[i:i+16].encode())
         i += 1
         time.sleep(interval)
