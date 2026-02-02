@@ -198,6 +198,7 @@ def update_data():
 
     # Inject json response for testing
     #j = json.load(open('nj/ot.json'))
+    #j = json.load(open('nj/ot_none.json'))
 
     if 'Sonderinformationen' in j and j['Sonderinformationen']:
         lauftext = j['Sonderinformationen']
@@ -214,9 +215,17 @@ def update_data():
     abfahrten_noerdlich = [a for a in abfahrten if a['Richtung'] == 'Richtung1']
     abfahrten_suedlich  = [a for a in abfahrten if a['Richtung'] == 'Richtung2']
 
-    zeilen = [format_zeile(abfahrten_noerdlich, now, bound='N'), format_zeile(abfahrten_suedlich, now, bound='S')]
-    print("  zeile1 = "+repr(zeilen[0]))
-    print("  zeile2 = "+repr(zeilen[1]))
+    zeilen = [
+        format_zeile(abfahrten_noerdlich, now, bound='N', empty=ESCAPE_COLOR_LIGHT_RED + b'N ' + ESCAPE_COLOR_GREEN + b'Keine Fahrten'),
+        format_zeile(abfahrten_suedlich, now, bound='S', empty=ESCAPE_COLOR_LIGHT_RED + b'S ' + ESCAPE_COLOR_GREEN + b'Keine Fahrten')
+    ]
+    if lauftext:
+        # don't alternate between a useful and no useful info
+        if b'Keine Fahrten' in zeilen[0] and not b'Keine Fahrten' in zeilen[1]:
+            del zeilen[0]
+        elif b'Keine Fahrten' in zeilen[1] and not b'Keine Fahrten' in zeilen[0]:
+            del zeilen[1]
+    print("  zeilen = "+repr(zeilen))
     print("  lauftext = "+repr(lauftext))
 
 def format_abfahrt(abfahrt, now, color=False) -> bytes:
