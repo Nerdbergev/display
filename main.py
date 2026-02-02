@@ -10,7 +10,8 @@ import network
 network.hostname('abfahrtsdisplay')
 wlan = network.WLAN(network.STA_IF)
 wlan.active(True)
-wlan.connect("Nerdberg", "ADD_WIFI_PASSWORD")
+#wlan.connect("Nerdberg", "ADD_WIFI_PASSWORD")
+wlan.connect("Nerdberg", "Nerdberg@MainBrain")
 print("...", end="")
 
 for i in range(20):

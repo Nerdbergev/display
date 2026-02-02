@@ -5,17 +5,21 @@ import re
 import time
 import json
 
+ESCAPE_COLOR_RED = b"\x80"
+ESCAPE_COLOR_LIGHT_RED = b"\x81"
+ESCAPE_COLOR_YELLOW = b"\x82"
+ESCAPE_COLOR_GREEN = b"\x87"
+ESCAPE_CURSOR_ROW1 = b"\x89"
+ESCAPE_CURSOR_ROW2 = b"\x8A"
+ESCAPE_RESET = b"\x8E"
+
 try:
     import requests
 except:
     import urequests
     requests = urequests
 
-zeile1 = b""
-zeile2 = b""
-zeile1_alt = b""
-zeile2_alt = b""
-lauftext = "Hallo Nerdberg"
+zeilen = []
 lauftext = ""
 
 if sys.platform == 'linux':
@@ -46,11 +50,8 @@ def parse_isodate(s):
     timezone = int(m.group(7))
     return int(time.mktime((year, month, day, hour-timezone, minute, second, 0, 0, 0)))
 
-def minutes_until(t):
-    # time.mktime expects localtime on cpython so handle the timezone delta
-    timezone_delta = time.mktime(time.localtime()) - time.mktime(time.gmtime())
-    seconds_until = t - int(time.time()-timezone_delta)
-    return seconds_until // 60
+def tsdiff_minutes(ts1, ts2):
+    return (ts1 - ts2) // 60
 
 sim_buffer = [' ']*32
 last_sim_buffer = None
@@ -130,16 +131,19 @@ def char_repl(s: str) -> str:
     return s
 
 
-def zeile2_scroll_msg(zeile1, zeile1_alt, dt: str, interval=0.2):
+def zeile2_scroll_lauftext(zeilen: list, lauftext: str, interval=0.2):
     """
-        dt: a string to scroll through zeile2
+        zeilen: list of preformatted bytestrings to cycle through (lenght: 0-2)
+        lauftext: a string to scroll through zeile2
     """
-    dt = " "*16 + dt + " "*17
+    lauftext = " "*16 + lauftext + " "*17
     i = 0 # offset of the scrolling message
-    while i < len(dt) - 16:
-        z1 = zeile1 if time.time() % 10 > 5 else zeile1_alt
-        t = dt[i:i+16]
-        display(b"\x89\x87" + z1 + b"\x8A\x82" + t.encode())
+    while i < len(lauftext) - 16:
+        if len(zeilen) == 0:
+            z1 = b""
+        else:
+            z1 = zeilen[min(int(time.time() % 10 > 5), len(zeilen))]
+        display(b"\x89\x87" + z1 + b"\x8A\x82" + lauftext[i:i+16].encode())
         i += 1
         time.sleep(interval)
 
@@ -147,181 +151,161 @@ last_update = 0
 def update_data():
     """
         if called 30s after last call:
-            - perform ntp sync
             - query vag API
             - set zeile1 to preformatted bytestring
-            - set zeile2 to bytestring without escape codes (string is capped to 16 bytes in display loop)
+            - set zeile2 to preformatted bytestring
             - set lauftext to string or list of strings or None
     """
     global last_update
-    global zeile1
-    global zeile2
-    global zeile1_alt
-    global zeile2_alt
+    global zeilen
     global lauftext
-    if not last_update or (last_update + 30 < int(time.time())):
-        print("update_data:")
-        # ntp sync on micropython
-        if sys.implementation.name == 'micropython' and sys.platform != 'linux':
-            import ntptime
-            try:
-                ntptime.settime()
-            except:
-                print("NTP failed")
+    if last_update and (last_update + 30 > int(time.time())):
+        return
+    print("update_data:")
+    last_update = int(time.time())
 
-        last_update = int(time.time())
+    # Jakobinenstraße
+    #url = "https://start.vag.de/dm/api/abfahrten.json/vgn/2171/"
 
-        # Jakobinenstraße
-        url = "https://start.vag.de/dm/api/abfahrten.json/vgn/2171/"
+    # Schoppershof
+    #url = "https://start.vag.de/dm/api/abfahrten.json/vgn/341/"
 
-        # Schoppershof
-        #url = "https://start.vag.de/dm/api/abfahrten.json/vgn/341/"
+    # Plaerrer
+    # https://start.vag.de/dm/api/v1/abfahrten.json/vgn/704?timedelay=0&product=Ubahn,Bus
 
-        # HTTP request
-        try:
-            res = requests.get(url, timeout=10)
-            assert res.status_code == 200, "HTTP Status Code: " + str(res.status_code) + ": " + res.reason
-        except Exception as e:
-            zeile1 = "HTTP req fail   ".encode()
-            zeile2 = b""
-            zeile1_alt = b""
-            zeile2_alt = b""
-            lauftext = str(e)
-            print(url)
-            print(e)
-            return
+    # Obere Turmstrasse
+    url = "https://start.vag.de/dm/api/abfahrten.json/vgn/730?timedelay=6"
 
-        # JSON decode
-        try:
-            j = json.loads(res.text)
-        except:
-            zeile1 = "API ret bad JSON".encode()
-            zeile2 = b""
-            zeile1_alt = b""
-            zeile2_alt = b""
-            lauftext = res.text[:100]
-            print("API returned bad json:\n" + res.text)
-            return
+    # HTTP request
+    try:
+        res = requests.get(url, timeout=10)
+        assert res.status_code == 200, "HTTP Status Code: " + str(res.status_code) + ": " + res.reason
+    except Exception as e:
+        zeilen = ["HTTP req fail   ".encode()]
+        lauftext = str(e)
+        print(url)
+        print(e)
+        return
 
-        # Inject json response for testing
-        #j = json.load(open('json_files/sonderinfo.json'))
+    # JSON decode
+    try:
+        j = json.loads(res.text)
+    except:
+        zeilen = ["API ret bad JSON".encode()]
+        lauftext = res.text[:100]
+        print("API returned bad json:\n" + res.text)
+        return
 
-        if 'Sonderinformationen' in j and j['Sonderinformationen']:
-            lauftext = j['Sonderinformationen']
-            lauftext = [l for l in lauftext if not l.startswith("Umgestaltung des Obstmarkts")]
-            lauftext = [l for l in lauftext if not l.startswith("Bauarbeiten Maxfeld")]
-        else:
-            lauftext = None
+    # Inject json response for testing
+    #j = json.load(open('nj/ot.json'))
 
-        abfahrten = j.get("Abfahrten", [])
-        wichtige_abfahrten = [a for a in abfahrten if
-            a["Linienname"].startswith('U') or
-            a["Linienname"].startswith('EU') or
-            a["Linienname"].startswith('N')]
+    if 'Sonderinformationen' in j and j['Sonderinformationen']:
+        lauftext = j['Sonderinformationen']
+        # Nicht hilfreiche Lauftexte
+        lauftext = [l for l in lauftext if not l.startswith("Umgestaltung des Obstmarkts")]
+        lauftext = [l for l in lauftext if not l.startswith("Bauarbeiten Maxfeld")]
+        lauftext = [l for l in lauftext if not l.startswith("Bitte achten Sie auf die Bahnsteig")]
+    else:
+        lauftext = None
 
-        # bei nightlinern ist die richtung invertiert
-        wichtige_abfahrten_gegenrichtung = [a for a in wichtige_abfahrten if
-            (a["Richtung"] == "Richtung2" and not a["Linienname"].startswith('N')) or
-            (a["Richtung"] == "Richtung1" and a["Linienname"].startswith('N'))]
+    now = parse_isodate(j['Metadata']['Timestamp'])
+    abfahrten = j.get("Abfahrten", [])
 
-        wichtige_abfahrten = [a for a in wichtige_abfahrten if
-            (a["Richtung"] == "Richtung1" and not a["Linienname"].startswith('N')) or
-            (a["Richtung"] == "Richtung2" and a["Linienname"].startswith('N'))]
+    abfahrten_noerdlich = [a for a in abfahrten if a['Richtung'] == 'Richtung1']
+    abfahrten_suedlich  = [a for a in abfahrten if a['Richtung'] == 'Richtung2']
 
-        if wichtige_abfahrten:
-            # nur abfahrten der gleichen linie anzeigen
-            wichtige_abfahrten = [a for a in wichtige_abfahrten if
-                a["Linienname"] == wichtige_abfahrten[0]["Linienname"]]
+    zeilen = [format_zeile(abfahrten_noerdlich, now, bound='N'), format_zeile(abfahrten_suedlich, now, bound='S')]
+    print("  zeile1 = "+repr(zeilen[0]))
+    print("  zeile2 = "+repr(zeilen[1]))
+    print("  lauftext = "+repr(lauftext))
 
-            if wichtige_abfahrten_gegenrichtung:
-                # nur abfahrten der gleichen linie anzeigen
-                wichtige_abfahrten_gegenrichtung = [a for a in wichtige_abfahrten_gegenrichtung if
-                    a["Linienname"] == wichtige_abfahrten_gegenrichtung[0]["Linienname"]]
-        else:
-            # jetzt ist es auch schon egal - zeige einfach die naechste abfahrt
-            naechste_abfahrt = abfahrten[0] if len(abfahrten) > 0 else None
-            wichtige_abfahrten = [naechste_abfahrt]
-            wichtige_abfahrten_gegenrichtung = []
+def format_abfahrt(abfahrt, now, color=False) -> bytes:
+    linie = abfahrt['Linienname']
+    linie = re.findall(r'(\d+)', linie)[0] # strip text - e.g. E4->4 for tram replacement bus
+    az = parse_isodate(abfahrt['AbfahrtszeitIst'])
+    abfahrt_in_min = tsdiff_minutes(az, now)
+    colors_map = {
+        '4': (ESCAPE_COLOR_GREEN, ESCAPE_COLOR_GREEN),
+        '6': (ESCAPE_COLOR_GREEN, ESCAPE_COLOR_YELLOW),
+        '10': (ESCAPE_COLOR_YELLOW, ESCAPE_COLOR_GREEN),
+        '36': (ESCAPE_COLOR_YELLOW, ESCAPE_COLOR_YELLOW),
+    }
+    color1, color2 = (b'', b'')
+    if color:
+        color1, color2 = colors_map.get(linie, (ESCAPE_COLOR_GREEN, ESCAPE_COLOR_GREEN))
+    return color1 + str(abfahrt_in_min).encode() + color2 + b"'"
 
-        zeile1, zeile2 = format_zeilen(wichtige_abfahrten, lauftext)
-        zeile1_alt, zeile2_alt = format_zeilen(wichtige_abfahrten_gegenrichtung, lauftext, empty=b"")
-        if not zeile1_alt:
-            zeile1_alt = zeile1
-        if not zeile2_alt:
-            zeile2_alt = zeile1
-        print("  zeile1 = "+repr(zeile1))
-        print("  zeile2 = "+repr(zeile2))
-        print("  zeile1_alt = "+repr(zeile1_alt))
-        print("  zeile2_alt = "+repr(zeile2_alt))
-        print("  lauftext = "+repr(lauftext))
+def format_zeile(abfahrten, now, empty=b"Keine Abfahrten", bound='') -> bytes:
+    """
+        abfahrten: list from VAG API
+        now: current timestamp
+        empty: text to display if abfahrten is empty
+        bound: common destination indicator (e.g. N or S) used if multiple lines are present
+    """
+    if not (abfahrten and abfahrten[0]):
+        return empty
+    linie1_name = abfahrten[0]['Linienname']
+    linie1_dest = abfahrten[0]['Richtungstext']
+    linie1_prod = abfahrten[0]['Produkt']
+    single_linie = not bool([a for a in abfahrten if a['Linienname'] != linie1_name or a['Richtungstext'] != linie1_dest])
+    linie = ""
+    print(f"{single_linie=}")
+    if single_linie:
+        max_abfahrten = 2
+        linie = 'T' if linie1_prod == 'Tram' else ''
+        linie += linie1_name
+        # line + space + at least one char of dest + space
+        space_for_departures = 16 - len(linie) - 3
+    else:
+        max_abfahrten = 99
+        linie = bound
+        # line + space
+        space_for_departures = 16 - len(linie) - 1
 
-def format_zeilen(abfahrten, lauftext, empty=b"Keine Abfahrten"):
-        zeile2 = b""
-        if abfahrten and abfahrten[0]:
-            max_abfahrten = 2 if lauftext else 3
-            num_abfahrten = min(len(abfahrten), max_abfahrten)
+    num_abfahrten = min(len(abfahrten), max_abfahrten)
 
-            abfahrtszeiten = []
-            for i in range(0, num_abfahrten):
-                a = abfahrten[i]
-                az = parse_isodate(a['AbfahrtszeitIst'])
-                #az = datetime.fromisoformat(a['AbfahrtszeitIst'])
-                #az = az.replace(tzinfo=None)
-                abfahrt_in_min = minutes_until(az)
-                #abfahrt_in_min = (az - datetime.now()).seconds // 60
-                abfahrtszeiten.append("%i'" % abfahrt_in_min)
-            if len(' '.join(abfahrtszeiten)) > (16 - 4):
-                del abfahrtszeiten[-1]
-            if lauftext and len(' '.join(abfahrtszeiten)) > (16 - 9):
-                del abfahrtszeiten[-1]
-            str_abfahrtszeiten = ' '.join(abfahrtszeiten)
-            a = abfahrten[0]
+    abfahrten = abfahrten[:num_abfahrten]
+    while len(b' '.join([format_abfahrt(a, now) for a in abfahrten])) > space_for_departures:
+        del abfahrten[-1]
+    str_abfahrtszeiten = b' '.join([format_abfahrt(a, now, color=not single_linie) for a in abfahrten])
+    str_abfahrtszeiten_len = len(b' '.join([format_abfahrt(a, now) for a in abfahrten]))
 
-            space_left_in_line1 = 16 - 1 - int(bool(lauftext)) - \
-                len(str_abfahrtszeiten) - len(a['Linienname'])
+    zeile = ESCAPE_COLOR_LIGHT_RED + linie.encode() + ESCAPE_COLOR_GREEN + b" "
 
-            zeile1 = b"\x81" + a['Linienname'].encode() + b"\x87 "
-            ziel = char_repl(a['Richtungstext'])
-            if ziel == "Hauptbahnhof":
-                ziel = "Nuernberg Hbf"
-            if ziel.startswith("Fue-"):
-                ziel = ziel.replace("Fue-", "F.")
-            if lauftext:
-                print(f"{ziel=}")
-                ziel = ziel.replace("Fuerth ", "F.")
-                ziel = ziel.replace("Nuernberg ", "N.")
-                ziel = ziel.replace("Langwasser ", "L.")
-                ziel = ziel.replace("Hauptbahnhof", "Hbf")
-                ziel = ziel.replace("N.Hbf", "Nue Hbf")
-                ziel = ziel[:space_left_in_line1]
-                zeile1 += ziel.encode() + b" "
-                zeile1 += b" " * (space_left_in_line1 - len(ziel))
-            else:
-                zeile1 += b" " * space_left_in_line1
-                zeile2 = ziel.encode()
-            zeile1 += str_abfahrtszeiten.encode()
-        else:
-            zeile1 = empty
-            zeile2 = b""
-        return (zeile1, zeile2)
+    if single_linie:
+        space_left_for_dest = 16 - len(linie) - 2 - str_abfahrtszeiten_len
+        ziel = char_repl(linie1_dest)
+        ziel = ziel.replace("Hauptbahnhof", "Nue Hbf")
+        if ziel.startswith("Fue-"):
+            ziel = ziel.replace("Fue-", "F.")
+        ziel = ziel.replace("Fuerth ", "F.")
+        ziel = ziel.replace("Nuernberg ", "N.")
+        ziel = ziel.replace("Langwasser ", "L.")
+        ziel = ziel.replace("Hauptbahnhof", "Hbf")
+        ziel = ziel.replace("N.Hbf", "Nue Hbf")
+        ziel = ziel[:space_left_for_dest]
+        zeile += ziel.encode() + b" "
+        zeile += b" " * (space_left_for_dest - len(ziel))
+    else:
+        space_left_for_dest = 16 - len(linie) - 1 - str_abfahrtszeiten_len
+        zeile += b" " * space_left_for_dest
+    zeile += str_abfahrtszeiten
+    return zeile
 
 def setup():
     # initialize display
-    display(b"\x8e\x87")
+    display(ESCAPE_RESET + ESCAPE_COLOR_GREEN)
 
 
 def mainloop():
-    global zeile1
-    global zeile1_alt
-    global zeile2
-    global zeile2_alt
+    global zeilen
     global lauftext
     msg_index = 0
     last_text = None
     while True:
         update_data()
 
-        # zeile 1: done via zeile2_scroll_msg or in else block
+        # zeile 1: done via zeile2_scroll_lauftext or in else block
 
         # zeile 2
         if lauftext:
@@ -337,13 +321,11 @@ def mainloop():
                     msg_index = 0
                 dt = my_text[msg_index]
             last_text = my_text
-            zeile2_scroll_msg(zeile1, zeile1_alt, char_repl(dt))
+            zeile2_scroll_lauftext(zeilen, char_repl(dt))
         else:
             # no lauftext
-            display(b"\x89\x87" + zeile1 + b"\x8A\x87" + zeile2[:16] + b" "*(16-len(zeile2)))
-            time.sleep(5.1)
-            display(b"\x89\x87" + zeile1_alt + b"\x8A\x87" + zeile2_alt[:16] + b" "*(16-len(zeile2_alt)))
-            time.sleep(5.1)
+            display(ESCAPE_CURSOR_ROW1 + zeilen[0] + ESCAPE_CURSOR_ROW2 + zeilen[1])
+            time.sleep(10.2)
 
 if __name__ == '__main__':
     setup()
