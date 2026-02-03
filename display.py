@@ -216,8 +216,8 @@ def update_data():
     abfahrten_suedlich  = [a for a in abfahrten if a['Richtung'] == 'Richtung2']
 
     zeilen = [
-        format_zeile(abfahrten_noerdlich, now, bound='N', empty=ESCAPE_COLOR_LIGHT_RED + b'N ' + ESCAPE_COLOR_GREEN + b'Keine Fahrten'),
-        format_zeile(abfahrten_suedlich, now, bound='S', empty=ESCAPE_COLOR_LIGHT_RED + b'S ' + ESCAPE_COLOR_GREEN + b'Keine Fahrten')
+        format_zeile(abfahrten_noerdlich, now, bound='N', empty=ESCAPE_COLOR_LIGHT_RED + b'N ' + ESCAPE_COLOR_GREEN + b'Keine Fahrten '),
+        format_zeile(abfahrten_suedlich, now, bound='S', empty=ESCAPE_COLOR_LIGHT_RED + b'S ' + ESCAPE_COLOR_GREEN + b'Keine Fahrten ')
     ]
     if lauftext:
         # don't alternate between a useful and no useful info
@@ -230,7 +230,7 @@ def update_data():
 
 def format_abfahrt(abfahrt, now, color=False) -> bytes:
     linie = abfahrt['Linienname']
-    linie = re.findall(r'(\d+)', linie)[0] # strip text - e.g. E4->4 for tram replacement bus
+    linie = re.search(r'(\d+)', linie).group(0) # strip text - e.g. E4->4 for tram replacement bus
     az = parse_isodate(abfahrt['AbfahrtszeitIst'])
     abfahrt_in_min = tsdiff_minutes(az, now)
     colors_map = {
