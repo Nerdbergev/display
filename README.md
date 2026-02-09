@@ -1,3 +1,7 @@
+> [!CAUTION]
+> Migrated to https://git.nerdberg.de/Nerdberg/display
+
+
 Abfahrtsdisplay für Öffis
 =========================
 
